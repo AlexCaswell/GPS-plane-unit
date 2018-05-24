@@ -1,4 +1,4 @@
-Pin# from left = arduino pin:
+Pin# from left = arduino pin #:
 (GPS is on right and Magnetometer is on left looking at the top of the board)
 
 1 = GND
