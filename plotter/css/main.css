@@ -1,0 +1,202 @@
+h3
+{
+	font-family: sans-serif;
+	font-weight: bold;
+}
+
+
+#map
+{
+	width: calc(70% - 5px);
+	height: 100vh;
+	float: right;
+}
+
+#settings
+{
+	width: 30%;
+	height: 100vh;
+	float: left;
+	border-right: 5px solid #DCDCDC;
+}
+
+#waypoints_div
+{
+	width: 100%;
+	height: 40vh;
+	border-bottom: 5px solid #DCDCDC;
+	padding-top: 30px;
+}
+
+#waypoints_div h4
+{
+	font-size: 25px;
+	height: 30px;
+	margin: 0 0 0 30px;
+	color: #222;
+	font-family: sans-serif;
+}
+
+#waypoints
+{
+	padding: 0;
+	height: calc(40vh - 60px);
+	overflow: scroll;
+	margin: 30px 0 0 0;
+}
+
+#waypoints li
+{
+	width: 100%;
+	list-style: none;
+	height: 50px;
+	border-top: 5px solid #FFF;
+	background: #EEE;
+	text-align: center;
+	vertical-align: all;
+	line-height: 50px;
+	font-family: sans-serif;
+}
+
+#waypoints li:hover
+{
+	background: darkgray;
+	cursor: pointer;
+}
+
+
+#export
+{
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 170px;
+	height: 70px;
+	background: #EEE;
+	border: 0;
+	outline: 0;
+	border-left: 5px solid gray;
+	border-bottom: 5px solid gray;
+	font-family: sans-serif;
+	font-weight: bold;
+	color: darkgray;
+	border-radius: 10px;
+	z-index: 100;
+}
+
+
+#export:hover
+{
+	color: black;
+	cursor: pointer;
+}
+
+#place_waypoint
+{
+	position: absolute;
+	bottom: 30px;
+	right: 30px;
+	width: 70px;
+	height: 70px;
+	background: #EEE;
+	border: 0;
+	outline: 0;
+	border-left: 5px solid gray;
+	border-bottom: 5px solid gray;
+	font-family: sans-serif;
+	font-weight: bold;
+	color: darkgray;
+	border-radius: 10px;
+	z-index: 200;
+}
+
+#place_waypoint:hover
+{
+	color: black;
+	cursor: pointer;
+}
+
+#settings_tab_selector
+{
+	width: calc(100% - 20px);
+	padding: 0;
+	height: 5vh;
+	margin-top: 10px;
+	padding-left: 20px;
+	border-bottom: 5px solid #DCDCDC;
+}
+
+#settings_tab_selector li
+{
+	border-top: 5px solid #DCDCDC;
+	border-left: 5px solid #DCDCDC;
+	border-right: 5px solid #DCDCDC;
+	border-top-right-radius: 10px;
+	border-top-left-radius: 10px;
+	display: inline-block;
+	line-height: calc(5vh - 5px);
+	width: 30%;
+	text-align: center;
+	font-family: sans-serif;
+	background: darkgray;
+	font-weight: bold;
+}
+
+#settings_tab_selector li:hover
+{
+	cursor: pointer;
+}
+
+.setting_label
+{
+	margin: 0;
+	font-family: sans-serif;
+	font-style: italic;
+}
+
+#options_tab
+{
+	background: #DCDCDC;
+}
+
+#options_specifier
+{
+	width: 100%;
+}
+
+#options_specifier ul
+{
+	width: 100%;
+	padding: 0;
+}
+
+#options_specifier ul li
+{
+	display: inline-block;
+	width: 40%;
+	text-align: left;
+	vertical-align: top;
+}
+
+#waypoint_specifier ul
+{
+	width: 100%;
+	padding: 10px 0 0 40px;
+}
+
+
+#waypoint_specifier ul li
+{
+	list-style: none;
+}
+
+
+.left_wall_coulmn
+{
+	padding-left: 20px;
+}
+
+#waypoint_specifier
+{
+	width: 100%;
+}
