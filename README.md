@@ -1,2 +1,3 @@
 # GPS-plane-unit
-Plotter web-app and firmware and for an arduino based flight controller.
+This repository contains a javascript web-app to create and export waypoint flight paths, firmware for the arduino based flight controller prototype, and an archive of flight datalog files.
+
