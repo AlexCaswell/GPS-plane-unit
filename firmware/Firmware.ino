@@ -51,16 +51,16 @@ const int ELEVATOR_SERVO_PIN = 7;
 const int GPS_ON_MICROSECONDS_VALUE = 2000;
 
 //height controller tuning values
-const int P_HEIGHT = 10;
-const int P_HEIGHT_T = 3;
+const int P_HEIGHT = 31;
+const int P_HEIGHT_T = 7;
 
 //heading controller tuning values
 const int P_HEADING = 1.4;
 
 //actuator microsecond zero values
-const int ELEVATOR_SERVO_MICROSECONDS_ZERO = 1330;
+const int ELEVATOR_SERVO_MICROSECONDS_ZERO = 1350;
 const int AILERON_SERVO_MICROSECONDS_ZERO = 1420;
-const int THROTTLE_ESC_MICROSECONDS_ZERO = 1050;
+const int THROTTLE_ESC_MICROSECONDS_ZERO = 1550;
 
 
 /*********************************************
@@ -191,6 +191,13 @@ Waypoint loadWaypoint(int index) {
     return wp_out;
 }
 
+//truncates value in both directions by factor
+int symetricCap(int value, int zero, double factor) {
+    double cap_size = zero/factor;
+    if(value > (zero + cap_size)) value = int(zero + cap_size);
+    if(value < (zero - cap_size)) value = int(zero - cap_size);
+    return value;
+}
 
 //calculates the degrees-from-north heading between two Coordinates objects
 double getTargetHeading(Coordinates c1, Coordinates c2) {
@@ -279,11 +286,11 @@ void setup() {
   SD.remove("datalog.txt");
 }
 
-
+double feet_target = 0;
 int count = 0;
 
 void loop() {
-//  
+  
 //  REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
 //  REMOTE_INPUT.pwm_elevator = pulseIn(CHANNEL_2, HIGH);
 //  REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
@@ -291,7 +298,8 @@ void loop() {
   
 //  Serial.println("AUTOPILOT: " + String(REMOTE_INPUT.pwm_gps) + ", " + "AILERON: " + String(REMOTE_INPUT.pwm_aileron) + ", " + "ELEVATOR: " + String(REMOTE_INPUT.pwm_elevator) + ", " + "THROTTLE: " + String(REMOTE_INPUT.pwm_throttle) + ", ");
 
-  if(count < 200) {//(REMOTE_INPUT.pwm_gps > GPS_ON_MICROSECONDS_VALUE) {
+  if(REMOTE_INPUT.pwm_gps > GPS_ON_MICROSECONDS_VALUE) {
+    if(count == 0) feet_target = 100;
     
     //CHECK WAYPOINT ARRIVAL
     if(hasArrived(CURRENT_WAYPOINT)) {
@@ -315,19 +323,16 @@ void loop() {
 
   
     //ELEVATOR CORRECTION
-    double feet_target = 12;
     double alt = getAltitude(bmp);
     double alt_error = (feet_target - alt);
     double out = ELEVATOR_SERVO_MICROSECONDS_ZERO + (alt_error*P_HEIGHT);
-    double cap_size = ELEVATOR_SERVO_MICROSECONDS_ZERO/3.5;
-    if(out > ELEVATOR_SERVO_MICROSECONDS_ZERO + cap_size) out = ELEVATOR_SERVO_MICROSECONDS_ZERO + cap_size;
-    if(out < ELEVATOR_SERVO_MICROSECONDS_ZERO - cap_size) out = ELEVATOR_SERVO_MICROSECONDS_ZERO - cap_size;
+    out = symetricCap(out, ELEVATOR_SERVO_MICROSECONDS_ZERO, 10);
+    REMOTE_INPUT.pwm_elevator = int(out);
 
     //optional throttle controller
-//    double t_out = THROTTLE_ESC_MICROSECONDS_ZERO + (alt_error*P_HEIGHT_T) + 600;
-//    REMOTE_INPUT.pwm_throttle = int(t_out);
-    
-    REMOTE_INPUT.pwm_elevator = int(out);
+    double t_out = THROTTLE_ESC_MICROSECONDS_ZERO + (alt_error*P_HEIGHT_T);
+    t_out = symetricCap(t_out, THROTTLE_ESC_MICROSECONDS_ZERO, 9);
+    REMOTE_INPUT.pwm_throttle = int(t_out);
 
     File data_log = SD.open("datalog.txt", FILE_WRITE);
     //data_log to sd card
@@ -335,16 +340,19 @@ void loop() {
       data_log.println("-----------------------------------------------------");
       data_log.println("Altitude: " + String(alt));
       data_log.println("Correction: " + String(alt_error*P_HEIGHT) + "  +  " +  ELEVATOR_SERVO_MICROSECONDS_ZERO + " = " + String(REMOTE_INPUT.pwm_elevator));
+      data_log.println("Throttle Correction: " + String(alt_error*P_HEIGHT_T) + "  +  " +  THROTTLE_ESC_MICROSECONDS_ZERO + " = " + String(REMOTE_INPUT.pwm_throttle));
       data_log.println("-----------------------------------------------------");
       data_log.close();
     }else {
       Serial.println("unable to open data_log");
     }
+
+    count++;
     //AILERON CORRECTION
     
   } else {
+    count = 0;
       //READ HUMAN CONTROLLER INPUT
-      
       REMOTE_INPUT.pwm_elevator = pulseIn(CHANNEL_2, HIGH);
       REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
       REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
@@ -356,7 +364,7 @@ void loop() {
   elevator.writeMicroseconds(REMOTE_INPUT.pwm_elevator);
   esc.writeMicroseconds(REMOTE_INPUT.pwm_throttle);
   
-  count++;
+  
 }
 
 
