@@ -53,7 +53,7 @@ const int ELEVATOR_SERVO_PIN = 7;
 
 const int GPS_ON_MICROSECONDS_VALUE = 2000;
 
-//height controller tuning values
+//Height controller tuning values
 //elevator controller
 const int P_HEIGHT = 31;
 const int EC_CAP = 170;

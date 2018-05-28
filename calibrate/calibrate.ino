@@ -112,6 +112,7 @@ void loop() {
       
       //save offsets to sd card
       File offsets = SD.open("offsets.txt", FILE_WRITE);
+      offsets.seek(0);
       if(offsets) {
         offsets.println("-----------------------------------------------------");
         offsets.println("Elevator offset: " + String(elevator_samples[0]));
