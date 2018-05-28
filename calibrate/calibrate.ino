@@ -53,17 +53,6 @@ const int ELEVATOR_SERVO_PIN = 7;
 
 const int GPS_ON_MICROSECONDS_VALUE = 2000;
 
-//height controller tuning values
-const int P_HEIGHT = 31;
-const int P_HEIGHT_T = 7;
-
-//heading controller tuning values
-const int P_HEADING = 1.4;
-
-//actuator microsecond zero values
-const int ELEVATOR_SERVO_MICROSECONDS_ZERO = 1350;
-const int AILERON_SERVO_MICROSECONDS_ZERO = 1420;
-const int THROTTLE_ESC_MICROSECONDS_ZERO = 1550;
 
 
 /*********************************************
