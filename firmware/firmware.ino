@@ -54,16 +54,20 @@ const int ELEVATOR_SERVO_PIN = 7;
 const int GPS_ON_MICROSECONDS_VALUE = 2000;
 
 //height controller tuning values
+//elevator controller
 const int P_HEIGHT = 31;
+const int EC_CAP = 170;
+//throttle controller
 const int P_HEIGHT_T = 7;
+const int TC_CAP = 200;
 
 //heading controller tuning values
 const int P_HEADING = 1.4;
 
-//actuator microsecond zero values
-const int ELEVATOR_SERVO_MICROSECONDS_ZERO = 1350;
-const int AILERON_SERVO_MICROSECONDS_ZERO = 1420;
-const int THROTTLE_ESC_MICROSECONDS_ZERO = 1550;
+//actuator microsecond offset values
+const int ELEVATOR_SERVO_MICROSECONDS_OFFSET = 1350;
+const int AILERON_SERVO_MICROSECONDS_OFFSET = 1420;
+const int THROTTLE_SERVO_MICROSECONDS_OFFSET = 1550;
 
 
 /*********************************************
@@ -113,9 +117,9 @@ class Controller {
     int pwm_gps;
 
   Controller() {
-    pwm_elevator = ELEVATOR_SERVO_MICROSECONDS_ZERO;
-    pwm_aileron = AILERON_SERVO_MICROSECONDS_ZERO;
-    pwm_throttle = THROTTLE_ESC_MICROSECONDS_ZERO;
+    pwm_elevator = ELEVATOR_SERVO_MICROSECONDS_OFFSET;
+    pwm_aileron = AILERON_SERVO_MICROSECONDS_OFFSET;
+    pwm_throttle = THROTTLE_SERVO_MICROSECONDS_OFFSET;
     pwm_gps = 0; //off
   }
 };
@@ -135,7 +139,7 @@ Servo aileron;
 
 //Flight
 int ALTITUDE; //define once in setup
-int AILERON_TARGET = AILERON_SERVO_MICROSECONDS_ZERO;
+int AILERON_TARGET = AILERON_SERVO_MICROSECONDS_OFFSET;
 Controller REMOTE_INPUT;
 Waypoint CURRENT_WAYPOINT;
 int WP_INDEX;
@@ -194,11 +198,10 @@ Waypoint loadWaypoint(int index) {
     return wp_out;
 }
 
-//truncates value in both directions by factor
-int symetricCap(int value, int zero, double factor) {
-    double cap_size = zero/factor;
-    if(value > (zero + cap_size)) value = int(zero + cap_size);
-    if(value < (zero - cap_size)) value = int(zero - cap_size);
+//caps value in both directions if past max deviation
+int symetricCap(int value, int zero, int max_deviation_microseconds) {
+    if(value > (zero + max_deviation_microseconds)) value = int(zero + max_deviation_microseconds);
+    if(value < (zero - max_deviation_microseconds)) value = int(zero - max_deviation_microseconds);
     return value;
 }
 
@@ -294,11 +297,12 @@ int count = 0;
 
 void loop() {
   
+    REMOTE_INPUT.pwm_gps = pulseIn(CHANNEL_5, HIGH);
+    
+//  // Serial data logging
 //  REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
 //  REMOTE_INPUT.pwm_elevator = pulseIn(CHANNEL_2, HIGH);
 //  REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
-  REMOTE_INPUT.pwm_gps = pulseIn(CHANNEL_5, HIGH);
-  
 //  Serial.println("AUTOPILOT: " + String(REMOTE_INPUT.pwm_gps) + ", " + "AILERON: " + String(REMOTE_INPUT.pwm_aileron) + ", " + "ELEVATOR: " + String(REMOTE_INPUT.pwm_elevator) + ", " + "THROTTLE: " + String(REMOTE_INPUT.pwm_throttle) + ", ");
 
   if(REMOTE_INPUT.pwm_gps > GPS_ON_MICROSECONDS_VALUE) {
@@ -317,24 +321,29 @@ void loop() {
       CURRENT_WAYPOINT = loadWaypoint(WP_INDEX);
     }
 
-    //control
-    REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
-//    REMOTE_INPUT.pwm_elevator = ELEVATOR_SERVO_MICROSECONDS_ZERO;
-    REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
+    //manual control
+    REMOTE_INPUT.pwm_aileron = sumetricCap(pulseIn(CHANNEL_1, HIGH), AILERON_SERVO_MICROSECONDS_OFFSET, 95);
+//    REMOTE_INPUT.pwm_elevator = ELEVATOR_SERVO_MICROSECONDS_OFFSET;
+//    REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
+
     
     //HEADING CORRECTION
 
   
-    //ELEVATOR CORRECTION
+    //HEIGHT CORRECTION
     double alt = getAltitude(bmp);
     double alt_error = (feet_target - alt);
-    double out = ELEVATOR_SERVO_MICROSECONDS_ZERO + (alt_error*P_HEIGHT);
-    out = symetricCap(out, ELEVATOR_SERVO_MICROSECONDS_ZERO, 10);
+    
+    //Elevator controller
+    double e_gain = (alt_error*P_HEIGHT);
+    double e_out = ELEVATOR_SERVO_MICROSECONDS_OFFSET + e_gain;
+    e_out = symetricCap(out, ELEVATOR_SERVO_MICROSECONDS_OFFSET, EC_CAP);
     REMOTE_INPUT.pwm_elevator = int(out);
 
-    //optional throttle controller
-    double t_out = THROTTLE_ESC_MICROSECONDS_ZERO + (alt_error*P_HEIGHT_T);
-    t_out = symetricCap(t_out, THROTTLE_ESC_MICROSECONDS_ZERO, 9);
+    //Throttle controller
+    double t_gain = (alt_error*P_HEIGHT_T);
+    double t_out = THROTTLE_SERVO_MICROSECONDS_OFFSET + t_gain;
+    t_out = symetricCap(t_out, THROTTLE_SERVO_MICROSECONDS_OFFSET, TC_CAP);
     REMOTE_INPUT.pwm_throttle = int(t_out);
 
     File data_log = SD.open("datalog.txt", FILE_WRITE);
@@ -342,16 +351,17 @@ void loop() {
     if(data_log) {
       data_log.println("-----------------------------------------------------");
       data_log.println("Altitude: " + String(alt));
-      data_log.println("Correction: " + String(alt_error*P_HEIGHT) + "  +  " +  ELEVATOR_SERVO_MICROSECONDS_ZERO + " = " + String(REMOTE_INPUT.pwm_elevator));
-      data_log.println("Throttle Correction: " + String(alt_error*P_HEIGHT_T) + "  +  " +  THROTTLE_ESC_MICROSECONDS_ZERO + " = " + String(REMOTE_INPUT.pwm_throttle));
+      data_log.println("Elevator Correction (total gain + offset): " + String(e_gain) + "  +  " +  ELEVATOR_SERVO_MICROSECONDS_OFFSET + " = " + String(e_out));
+      data_log.println("Throttle Correction: " + String(t_gain) + "  +  " +  THROTTLE_SERVO_MICROSECONDS_OFFSET + " = " + String(t_out));
       data_log.println("-----------------------------------------------------");
       data_log.close();
     }else {
-      Serial.println("unable to open data_log");
+      Serial.println("unable to open datalog file.");
     }
+    
+    //AILERON CORRECTION
 
     count++;
-    //AILERON CORRECTION
     
   } else {
     count = 0;

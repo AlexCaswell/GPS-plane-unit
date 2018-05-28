@@ -1,10 +1,5 @@
-#include "Servo.h"
-#include <Wire.h>
 #include <SPI.h>
 #include <SD.h>
-#include <Adafruit_BMP085.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_HMC5883_U.h>
 
 
 /*********************************************
@@ -18,15 +13,6 @@
  * channel4 = digital 5
  * channel5 = digital 9
  * 
- * ACTUATORS
- * esc = analog 1
- * ailerion servo = digital 8
- * elevator servo = digital 7
- * 
- * I2C DEVICES
- * SCL = analog 5
- * SDA = analog 4
- * 
  * SPI SD READER
  * CS = digital 10
  * MOSI = digital 11
@@ -35,10 +21,6 @@
 */
 
 
-/*********************************************
-CONSTANTS
-*********************************************/
-
 //receiver channel input pins
 const int CHANNEL_1 = 2; //aileron
 const int CHANNEL_2 = 3; //elevator
@@ -46,53 +28,9 @@ const int CHANNEL_3 = 4; //throttle
 const int CHANNEL_4 = 5; 
 const int CHANNEL_5 = 9; //gps-on switch
 
-//output pins (to plane)
-const int AILERON_SERVO_PIN = 8;
-const int ELEVATOR_SERVO_PIN = 7;
-//throttle is A1
-
 const int GPS_ON_MICROSECONDS_VALUE = 2000;
 
-
-
-/*********************************************
-MODELS
-*********************************************/
-
-class Coordinates {
-  public:
-    char lng[20];
-    char lat[20];
-
-    Coordinates() {}
-    
-    Coordinates(char* la, char* ln) {
-      strcpy(lat, la);
-      strcpy(lng, ln);
-    }
-};
-
-class Waypoint {
-  public:
-    Coordinates location;
-    int ft_altitude;
-    bool drop_on_arrival;
-
-    Waypoint() {}
-
-    Waypoint(Coordinates loc, int alt, bool drop) {
-      location = loc;
-      ft_altitude = alt;
-      drop_on_arrival = drop;
-    }
-
-    Waypoint& operator=(Waypoint const& obj) {
-      location = obj.location;
-      ft_altitude = obj.ft_altitude;
-      drop_on_arrival = obj.drop_on_arrival;
-      return *this;
-    }
-};
+const int SAMPLES = 5;
 
 class Controller {
   public:
@@ -102,126 +40,20 @@ class Controller {
     int pwm_gps;
 
   Controller() {
-    pwm_elevator = ELEVATOR_SERVO_MICROSECONDS_ZERO;
-    pwm_aileron = AILERON_SERVO_MICROSECONDS_ZERO;
-    pwm_throttle = THROTTLE_ESC_MICROSECONDS_ZERO;
+    pwm_elevator = 0;
+    pwm_aileron = 0;
+    pwm_throttle = 0;
     pwm_gps = 0; //off
   }
 };
 
 
-/*********************************************
-VARIABLES
-*********************************************/
-
-//Sensors
-Adafruit_BMP085 bmp;
-
-//Actuators
-Servo esc;
-Servo elevator;
-Servo aileron;
-
-//Flight
-int ALTITUDE; //define once in setup
-int AILERON_TARGET = AILERON_SERVO_MICROSECONDS_ZERO;
 Controller REMOTE_INPUT;
-Waypoint CURRENT_WAYPOINT;
-int WP_INDEX;
-int WP_LENGTH;
-bool REPEAT_FLIGHT;
-bool RETURN_HOME;
 
-/*********************************************
-FUNCTIONS
-*********************************************/
+int elevator_samples[SAMPLES];
+int throttle_samples[SAMPLES];
+int aileron_samples[SAMPLES];
 
-//converts null-terminated charArray to integer
-int charArrayToInt(char* charArr) {
-  String string = String(charArr);
-  return int(string.toInt());
-}
-
-//gets line of text from open file object
-void getNextFileLine(File file, char* string) {
-  int line_len = 0;
-  for(int i = 0; file.available(); i++) {
-    if(char(file.peek()) == '\n') {
-      file.seek(file.position() + 1);
-      break;
-    }
-    line_len++;
-    string[i] = char(file.read());
-  }
-  
-  string[line_len] = '\0'; //null terminate
-}
-
-//returns a populated Waypoint object from a flight file and index
-Waypoint loadWaypoint(int index) {
-    File flight = SD.open("flight.txt");
-    flight.seek(0); //reset file position
-    char string[20];
-    getNextFileLine(flight, string); getNextFileLine(flight, string); getNextFileLine(flight, string); //remove flight settings and newline
-
-    for(int i = 0; i < index * 5; i++) getNextFileLine(flight, string); //each waypoint is five lines
-
-    getNextFileLine(flight, string);
-    bool drop = charArrayToInt(string);
-
-    getNextFileLine(flight, string);
-    int ft_altitude = charArrayToInt(string);
-   
-    getNextFileLine(flight, string);
-    Coordinates coords(string, new char);
-    getNextFileLine(flight, string);
-    strcpy(coords.lng, string);
-    flight.close();
-    
-    Waypoint wp_out(coords, ft_altitude, drop);
-    
-    return wp_out;
-}
-
-//truncates value in both directions by factor
-int symetricCap(int value, int zero, double factor) {
-    double cap_size = zero/factor;
-    if(value > (zero + cap_size)) value = int(zero + cap_size);
-    if(value < (zero - cap_size)) value = int(zero - cap_size);
-    return value;
-}
-
-//calculates the degrees-from-north heading between two Coordinates objects
-double getTargetHeading(Coordinates c1, Coordinates c2) {
-  
-}
-
-//reads current degrees-from-north heading from magnetometer
-double getHeading() {
-  
-}
-
-//returns the ft difference in current altitude and the ALTITUDE global varible
-double getAltitude(Adafruit_BMP085 b_sensor) {
-  double ft_altitude = (b_sensor.readAltitude() - ALTITUDE)*3.28084; //get difference and convert from meters to feet
-  return ft_altitude;
-}
-
-//returns current coordinates
-Coordinates getCurrentCoordinates() {
-  
-}
-
-
-//determines if waypoint has been reached
-bool hasArrived(Waypoint waypoint) {
-  return false;
-}
-
-//drops plane payload
-void dropPayload() {
-  
-}
 
 
 void setup() {
@@ -241,120 +73,61 @@ void setup() {
   pinMode(CHANNEL_4, INPUT);
   pinMode(CHANNEL_5, INPUT);
 
-  //Actuators
-  esc.attach(A1);
-  aileron.attach(AILERON_SERVO_PIN);
-  elevator.attach(ELEVATOR_SERVO_PIN);
-
-  //Sensors
-  if(!bmp.begin()) {
-   Serial.println("Unable to find BMP180 device.");
-    while (1) {}
-  }
-  //set global altitude zero-variable
-  ALTITUDE = bmp.readAltitude();
-
-  //Load flight file
-  File FLIGHT = SD.open("flight.txt");
-  char string[20]; 
-  
-  getNextFileLine(FLIGHT, string);
-  REPEAT_FLIGHT = bool(charArrayToInt(string));
-  getNextFileLine(FLIGHT, string);
-  RETURN_HOME = charArrayToInt(string);
-
-  int wpt_count = 0;
-  while(FLIGHT.available()) {
-    getNextFileLine(FLIGHT, string);
-    if(string[0] == '\0') wpt_count++;
-  }
-  FLIGHT.close();
-
-  WP_LENGTH = wpt_count;
-  WP_INDEX = 0;
-
-  CURRENT_WAYPOINT = loadWaypoint(WP_INDEX);
-
-  SD.remove("datalog.txt");
+  SD.remove("calibration_offsets.txt");
 }
 
-double feet_target = 0;
-int count = 0;
 
+int count = 0;
 void loop() {
   
-//  REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
-//  REMOTE_INPUT.pwm_elevator = pulseIn(CHANNEL_2, HIGH);
-//  REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
   REMOTE_INPUT.pwm_gps = pulseIn(CHANNEL_5, HIGH);
   
-//  Serial.println("AUTOPILOT: " + String(REMOTE_INPUT.pwm_gps) + ", " + "AILERON: " + String(REMOTE_INPUT.pwm_aileron) + ", " + "ELEVATOR: " + String(REMOTE_INPUT.pwm_elevator) + ", " + "THROTTLE: " + String(REMOTE_INPUT.pwm_throttle) + ", ");
 
-  if(REMOTE_INPUT.pwm_gps > GPS_ON_MICROSECONDS_VALUE) {
-    if(count == 0) feet_target = 100;
+  if(REMOTE_INPUT.pwm_gps > GPS_ON_MICROSECONDS_VALUE && count == 0) {
+    count++;
     
-    //CHECK WAYPOINT ARRIVAL
-    if(hasArrived(CURRENT_WAYPOINT)) {
-      if(CURRENT_WAYPOINT.drop_on_arrival) {
-        dropPayload();
-      }
-      if(WP_INDEX == WP_LENGTH - 1) { //is last waypoint
-        if(RETURN_HOME || REPEAT_FLIGHT) WP_INDEX = -1;
-        else WP_INDEX--;
-      }
-      WP_INDEX++; //either 0 or last waypoint when final wp is reached
-      CURRENT_WAYPOINT = loadWaypoint(WP_INDEX);
+    //record 5 samples over 1 second
+    for(int i = 0; i < SAMPLES; i++) {
+      REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
+      REMOTE_INPUT.pwm_elevator = pulseIn(CHANNEL_2, HIGH);
+      REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
+      
+      elevator_samples[i] = REMOTE_INPUT.pwm_elevator;
+      throttle_samples[i] = REMOTE_INPUT.pwm_throttle;
+      aileron_samples[i] = REMOTE_INPUT.pwm_aileron;
+      
+      delay(200);
     }
 
-    //control
-    REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
-//    REMOTE_INPUT.pwm_elevator = ELEVATOR_SERVO_MICROSECONDS_ZERO;
-    REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
+    //average samples
+    for(int i = 0; i < SAMPLES; i++) {
+      elevator_samples[0] += elevator_samples[i];
+      throttle_samples[0] += throttle_samples[i]; 
+      aileron_samples[0] += aileron_samples[i];
+    }
+    elevator_samples[0] = elevator_samples[0]/SAMPLES;
+    throttle_samples[0] = throttle_samples[0]/SAMPLES;
+    aileron_samples[0] = aileron_samples[0]/SAMPLES;
     
-    //HEADING CORRECTION
-
-  
-    //ELEVATOR CORRECTION
-    double alt = getAltitude(bmp);
-    double alt_error = (feet_target - alt);
-    double out = ELEVATOR_SERVO_MICROSECONDS_ZERO + (alt_error*P_HEIGHT);
-    out = symetricCap(out, ELEVATOR_SERVO_MICROSECONDS_ZERO, 10);
-    REMOTE_INPUT.pwm_elevator = int(out);
-
-    //optional throttle controller
-    double t_out = THROTTLE_ESC_MICROSECONDS_ZERO + (alt_error*P_HEIGHT_T);
-    t_out = symetricCap(t_out, THROTTLE_ESC_MICROSECONDS_ZERO, 9);
-    REMOTE_INPUT.pwm_throttle = int(t_out);
-
-    File data_log = SD.open("datalog.txt", FILE_WRITE);
-    //data_log to sd card
-    if(data_log) {
-      data_log.println("-----------------------------------------------------");
-      data_log.println("Altitude: " + String(alt));
-      data_log.println("Correction: " + String(alt_error*P_HEIGHT) + "  +  " +  ELEVATOR_SERVO_MICROSECONDS_ZERO + " = " + String(REMOTE_INPUT.pwm_elevator));
-      data_log.println("Throttle Correction: " + String(alt_error*P_HEIGHT_T) + "  +  " +  THROTTLE_ESC_MICROSECONDS_ZERO + " = " + String(REMOTE_INPUT.pwm_throttle));
-      data_log.println("-----------------------------------------------------");
-      data_log.close();
+    //save offsets to sd card
+    File offsets = SD.open("calibration_offsets.txt", FILE_WRITE);
+    if(offsets) {
+      Serial.println("offsets");
+      offsets.println("-----------------------------------------------------");
+      offsets.println("Elevator offset: " + String(elevator_samples[0]));
+      offsets.println("Throttle offset: " + String(throttle_samples[0]));
+      offsets.println("Aileron offset: " + String(aileron_samples[0]));
+      offsets.println("-----------------------------------------------------");
+      offsets.close();
     }else {
-      Serial.println("unable to open data_log");
+      Serial.println("unable to open file");
     }
 
     count++;
-    //AILERON CORRECTION
     
-  } else {
+  }else {
     count = 0;
-      //READ HUMAN CONTROLLER INPUT
-      REMOTE_INPUT.pwm_elevator = pulseIn(CHANNEL_2, HIGH);
-      REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
-      REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
   }
-
-  
-  //APPLY VALUES
-  aileron.writeMicroseconds(REMOTE_INPUT.pwm_aileron);
-  elevator.writeMicroseconds(REMOTE_INPUT.pwm_elevator);
-  esc.writeMicroseconds(REMOTE_INPUT.pwm_throttle);
   
   
 }
