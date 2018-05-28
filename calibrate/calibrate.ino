@@ -73,7 +73,7 @@ void setup() {
   pinMode(CHANNEL_4, INPUT);
   pinMode(CHANNEL_5, INPUT);
 
-  SD.remove("calibration_offsets.txt");
+  SD.remove("offsets.txt");
 }
 
 
@@ -83,47 +83,47 @@ void loop() {
   REMOTE_INPUT.pwm_gps = pulseIn(CHANNEL_5, HIGH);
   
 
-  if(REMOTE_INPUT.pwm_gps > GPS_ON_MICROSECONDS_VALUE && count == 0) {
-    count++;
-    
-    //record 5 samples over 1 second
-    for(int i = 0; i < SAMPLES; i++) {
-      REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
-      REMOTE_INPUT.pwm_elevator = pulseIn(CHANNEL_2, HIGH);
-      REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
+  if(REMOTE_INPUT.pwm_gps > GPS_ON_MICROSECONDS_VALUE) {
+    if(count == 0) {
+      count++;
       
-      elevator_samples[i] = REMOTE_INPUT.pwm_elevator;
-      throttle_samples[i] = REMOTE_INPUT.pwm_throttle;
-      aileron_samples[i] = REMOTE_INPUT.pwm_aileron;
+      //record 5 samples over 1 second
+      for(int i = 0; i < SAMPLES; i++) {
+        REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
+        REMOTE_INPUT.pwm_elevator = pulseIn(CHANNEL_2, HIGH);
+        REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
+        
+        elevator_samples[i] = REMOTE_INPUT.pwm_elevator;
+        throttle_samples[i] = REMOTE_INPUT.pwm_throttle;
+        aileron_samples[i] = REMOTE_INPUT.pwm_aileron;
+        
+        delay(200);
+      }
+  
+      //average samples
+      for(int i = 0; i < SAMPLES; i++) {
+        elevator_samples[0] += elevator_samples[i];
+        throttle_samples[0] += throttle_samples[i]; 
+        aileron_samples[0] += aileron_samples[i];
+      }
+      elevator_samples[0] = elevator_samples[0]/SAMPLES;
+      throttle_samples[0] = throttle_samples[0]/SAMPLES;
+      aileron_samples[0] = aileron_samples[0]/SAMPLES;
       
-      delay(200);
+      //save offsets to sd card
+      File offsets = SD.open("offsets.txt", FILE_WRITE);
+      if(offsets) {
+        offsets.println("-----------------------------------------------------");
+        offsets.println("Elevator offset: " + String(elevator_samples[0]));
+        offsets.println("Throttle offset: " + String(throttle_samples[0]));
+        offsets.println("Aileron offset: " + String(aileron_samples[0]));
+        offsets.println("-----------------------------------------------------");
+        offsets.close();
+      }else {
+        Serial.println("unable to open file");
+      }
+      
     }
-
-    //average samples
-    for(int i = 0; i < SAMPLES; i++) {
-      elevator_samples[0] += elevator_samples[i];
-      throttle_samples[0] += throttle_samples[i]; 
-      aileron_samples[0] += aileron_samples[i];
-    }
-    elevator_samples[0] = elevator_samples[0]/SAMPLES;
-    throttle_samples[0] = throttle_samples[0]/SAMPLES;
-    aileron_samples[0] = aileron_samples[0]/SAMPLES;
-    
-    //save offsets to sd card
-    File offsets = SD.open("calibration_offsets.txt", FILE_WRITE);
-    if(offsets) {
-      Serial.println("offsets");
-      offsets.println("-----------------------------------------------------");
-      offsets.println("Elevator offset: " + String(elevator_samples[0]));
-      offsets.println("Throttle offset: " + String(throttle_samples[0]));
-      offsets.println("Aileron offset: " + String(aileron_samples[0]));
-      offsets.println("-----------------------------------------------------");
-      offsets.close();
-    }else {
-      Serial.println("unable to open file");
-    }
-
-    count++;
     
   }else {
     count = 0;

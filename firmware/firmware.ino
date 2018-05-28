@@ -306,7 +306,7 @@ void loop() {
 //  Serial.println("AUTOPILOT: " + String(REMOTE_INPUT.pwm_gps) + ", " + "AILERON: " + String(REMOTE_INPUT.pwm_aileron) + ", " + "ELEVATOR: " + String(REMOTE_INPUT.pwm_elevator) + ", " + "THROTTLE: " + String(REMOTE_INPUT.pwm_throttle) + ", ");
 
   if(REMOTE_INPUT.pwm_gps > GPS_ON_MICROSECONDS_VALUE) {
-    if(count == 0) feet_target = 100;
+    if(count == 0) feet_target = 100; //on first cycle
     
     //CHECK WAYPOINT ARRIVAL
     if(hasArrived(CURRENT_WAYPOINT)) {
@@ -321,8 +321,8 @@ void loop() {
       CURRENT_WAYPOINT = loadWaypoint(WP_INDEX);
     }
 
-    //manual control
-    REMOTE_INPUT.pwm_aileron = sumetricCap(pulseIn(CHANNEL_1, HIGH), AILERON_SERVO_MICROSECONDS_OFFSET, 95);
+    //Manual control
+    REMOTE_INPUT.pwm_aileron = symetricCap(pulseIn(CHANNEL_1, HIGH), AILERON_SERVO_MICROSECONDS_OFFSET, 95);
 //    REMOTE_INPUT.pwm_elevator = ELEVATOR_SERVO_MICROSECONDS_OFFSET;
 //    REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
 
@@ -337,8 +337,8 @@ void loop() {
     //Elevator controller
     double e_gain = (alt_error*P_HEIGHT);
     double e_out = ELEVATOR_SERVO_MICROSECONDS_OFFSET + e_gain;
-    e_out = symetricCap(out, ELEVATOR_SERVO_MICROSECONDS_OFFSET, EC_CAP);
-    REMOTE_INPUT.pwm_elevator = int(out);
+    e_out = symetricCap(e_out, ELEVATOR_SERVO_MICROSECONDS_OFFSET, EC_CAP);
+    REMOTE_INPUT.pwm_elevator = int(e_out);
 
     //Throttle controller
     double t_gain = (alt_error*P_HEIGHT_T);
@@ -346,21 +346,24 @@ void loop() {
     t_out = symetricCap(t_out, THROTTLE_SERVO_MICROSECONDS_OFFSET, TC_CAP);
     REMOTE_INPUT.pwm_throttle = int(t_out);
 
-    File data_log = SD.open("datalog.txt", FILE_WRITE);
+
+    //AILERON CORRECTION
+
+
     //data_log to sd card
+    File data_log = SD.open("datalog.txt", FILE_WRITE);
     if(data_log) {
       data_log.println("-----------------------------------------------------");
-      data_log.println("Altitude: " + String(alt));
-      data_log.println("Elevator Correction (total gain + offset): " + String(e_gain) + "  +  " +  ELEVATOR_SERVO_MICROSECONDS_OFFSET + " = " + String(e_out));
-      data_log.println("Throttle Correction: " + String(t_gain) + "  +  " +  THROTTLE_SERVO_MICROSECONDS_OFFSET + " = " + String(t_out));
+      data_log.println("Altitude: " + String(alt) + " | Target: " + String(feet_target));
+      data_log.println("Elevator Correction (capped: total gain + offset): " + String(e_gain) + "  +  " +  ELEVATOR_SERVO_MICROSECONDS_OFFSET + " = " + String(REMOTE_INPUT.pwm_elevator));
+      data_log.println("Throttle Correction: " + String(t_gain) + "  +  " +  THROTTLE_SERVO_MICROSECONDS_OFFSET + " = " + String(REMOTE_INPUT.pwm_throttle));
       data_log.println("-----------------------------------------------------");
       data_log.close();
     }else {
       Serial.println("unable to open datalog file.");
     }
-    
-    //AILERON CORRECTION
 
+    
     count++;
     
   } else {
