@@ -1,3 +1,4 @@
+#include "Servo.h"
 #include <SPI.h>
 #include <SD.h>
 
@@ -12,6 +13,11 @@
  * channel3 = digital 4
  * channel4 = digital 5
  * channel5 = digital 9
+ * 
+ * ACTUATORS
+ * esc = analog 1
+ * ailerion servo = digital 8
+ * elevator servo = digital 7
  * 
  * SPI SD READER
  * CS = digital 10
@@ -28,9 +34,14 @@ const int CHANNEL_3 = 4; //throttle
 const int CHANNEL_4 = 5; 
 const int CHANNEL_5 = 9; //gps-on switch
 
+//output pins (to plane)
+const int AILERON_SERVO_PIN = 8;
+const int ELEVATOR_SERVO_PIN = 7;
+//throttle is A1
+
 const int GPS_ON_MICROSECONDS_VALUE = 2000;
 
-const int SAMPLES = 5;
+const int SAMPLES = 20;
 
 class Controller {
   public:
@@ -47,6 +58,10 @@ class Controller {
   }
 };
 
+//Actuators
+Servo esc;
+Servo elevator;
+Servo aileron;
 
 Controller REMOTE_INPUT;
 
@@ -65,6 +80,11 @@ void setup() {
     while(1) {}
   }
   pinMode(10, OUTPUT); //cs must be output
+  
+  //Actuators
+  esc.attach(A1);
+  aileron.attach(AILERON_SERVO_PIN);
+  elevator.attach(ELEVATOR_SERVO_PIN);
 
   //Controller inputs
   pinMode(CHANNEL_1, INPUT);
@@ -81,24 +101,18 @@ int count = 0;
 void loop() {
   
   REMOTE_INPUT.pwm_gps = pulseIn(CHANNEL_5, HIGH);
+  REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
+  REMOTE_INPUT.pwm_elevator = pulseIn(CHANNEL_2, HIGH);
+  REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
   
 
   if(REMOTE_INPUT.pwm_gps > GPS_ON_MICROSECONDS_VALUE) {
-    if(count == 0) {
-      count++;
+    if(count < SAMPLES) {
       
       //record 5 samples over 1 second
-      for(int i = 0; i < SAMPLES; i++) {
-        REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
-        REMOTE_INPUT.pwm_elevator = pulseIn(CHANNEL_2, HIGH);
-        REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
-        
-        elevator_samples[i] = REMOTE_INPUT.pwm_elevator;
-        throttle_samples[i] = REMOTE_INPUT.pwm_throttle;
-        aileron_samples[i] = REMOTE_INPUT.pwm_aileron;
-        
-        delay(200);
-      }
+      elevator_samples[count] = pulseIn(CHANNEL_2, HIGH);
+      throttle_samples[count] = pulseIn(CHANNEL_3, HIGH);
+      aileron_samples[count] = pulseIn(CHANNEL_1, HIGH);
   
       //average samples
       for(int i = 0; i < SAMPLES; i++) {
@@ -123,13 +137,17 @@ void loop() {
       }else {
         Serial.println("unable to open file");
       }
-      
+
+      count++;
     }
     
   }else {
     count = 0;
   }
-  
+
+  aileron.writeMicroseconds(REMOTE_INPUT.pwm_aileron);
+  elevator.writeMicroseconds(REMOTE_INPUT.pwm_elevator);
+  esc.writeMicroseconds(REMOTE_INPUT.pwm_throttle);
   
 }
 

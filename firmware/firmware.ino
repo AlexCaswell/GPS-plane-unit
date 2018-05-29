@@ -55,19 +55,19 @@ const int GPS_ON_MICROSECONDS_VALUE = 2000;
 
 //Height controller tuning values
 //elevator controller
-const int P_HEIGHT = 31;
-const int EC_CAP = 170;
+const int P_HEIGHT = 23;
+const int EC_CAP = 140;
 //throttle controller
-const int P_HEIGHT_T = 7;
-const int TC_CAP = 200;
+const int P_HEIGHT_T = 9;
+const int TC_CAP = 210;
 
 //heading controller tuning values
 const int P_HEADING = 1.4;
 
 //actuator microsecond offset values
-const int ELEVATOR_SERVO_MICROSECONDS_OFFSET = 1350;
+const int ELEVATOR_SERVO_MICROSECONDS_OFFSET = 1110;
 const int AILERON_SERVO_MICROSECONDS_OFFSET = 1420;
-const int THROTTLE_SERVO_MICROSECONDS_OFFSET = 1550;
+const int THROTTLE_SERVO_MICROSECONDS_OFFSET = 1700;
 
 
 /*********************************************
@@ -322,7 +322,7 @@ void loop() {
     }
 
     //Manual control
-    REMOTE_INPUT.pwm_aileron = symetricCap(pulseIn(CHANNEL_1, HIGH), AILERON_SERVO_MICROSECONDS_OFFSET, 95);
+    REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);//symetricCap(pulseIn(CHANNEL_1, HIGH), AILERON_SERVO_MICROSECONDS_OFFSET, 95);
 //    REMOTE_INPUT.pwm_elevator = ELEVATOR_SERVO_MICROSECONDS_OFFSET;
 //    REMOTE_INPUT.pwm_throttle = pulseIn(CHANNEL_3, HIGH);
 
