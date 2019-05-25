@@ -41,7 +41,7 @@ const int ELEVATOR_SERVO_PIN = 7;
 
 const int GPS_ON_MICROSECONDS_VALUE = 2000;
 
-const int SAMPLES = 20;
+const int SAMPLES = 3;
 
 class Controller {
   public:
@@ -109,7 +109,7 @@ void loop() {
   if(REMOTE_INPUT.pwm_gps > GPS_ON_MICROSECONDS_VALUE) {
     if(count < SAMPLES) {
       
-      //record 5 samples over 1 second
+      //record samples
       elevator_samples[count] = pulseIn(CHANNEL_2, HIGH);
       throttle_samples[count] = pulseIn(CHANNEL_3, HIGH);
       aileron_samples[count] = pulseIn(CHANNEL_1, HIGH);

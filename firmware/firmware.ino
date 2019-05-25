@@ -56,10 +56,12 @@ const int GPS_ON_MICROSECONDS_VALUE = 2000;
 //Height controller tuning values
 //elevator controller
 const int P_HEIGHT = 23;
-const int EC_CAP = 140;
+const int EC_CAP_UPPER = 100;
+const int EC_CAP_LOWER = 50;
 //throttle controller
 const int P_HEIGHT_T = 9;
-const int TC_CAP = 210;
+const int TC_CAP_UPPER = 100;
+const int TC_CAP_LOWER = 50;
 
 //heading controller tuning values
 const int P_HEADING = 1.4;
@@ -198,10 +200,10 @@ Waypoint loadWaypoint(int index) {
     return wp_out;
 }
 
-//caps value in both directions if past max deviation
-int symetricCap(int value, int zero, int max_deviation_microseconds) {
-    if(value > (zero + max_deviation_microseconds)) value = int(zero + max_deviation_microseconds);
-    if(value < (zero - max_deviation_microseconds)) value = int(zero - max_deviation_microseconds);
+//caps value in both directions if past respective max deviation
+int cap(int value, int zero, int upper, int lower) {
+    if(value > (zero + upper)) value = int(zero + upper);
+    if(value < (zero - lower)) value = int(zero - lower);
     return value;
 }
 
@@ -292,6 +294,7 @@ void setup() {
   SD.remove("datalog.txt");
 }
 
+//loop varibles
 double feet_target = 0;
 int count = 0;
 
@@ -337,13 +340,13 @@ void loop() {
     //Elevator controller
     double e_gain = (alt_error*P_HEIGHT);
     double e_out = ELEVATOR_SERVO_MICROSECONDS_OFFSET + e_gain;
-    e_out = symetricCap(e_out, ELEVATOR_SERVO_MICROSECONDS_OFFSET, EC_CAP);
+    e_out = cap(e_out, ELEVATOR_SERVO_MICROSECONDS_OFFSET, EC_CAP_UPPER, EC_CAP_LOWER);
     REMOTE_INPUT.pwm_elevator = int(e_out);
 
     //Throttle controller
     double t_gain = (alt_error*P_HEIGHT_T);
     double t_out = THROTTLE_SERVO_MICROSECONDS_OFFSET + t_gain;
-    t_out = symetricCap(t_out, THROTTLE_SERVO_MICROSECONDS_OFFSET, TC_CAP);
+    t_out = cap(t_out, THROTTLE_SERVO_MICROSECONDS_OFFSET, TC_CAP_UPPER, TC_CAP_LOWER);
     REMOTE_INPUT.pwm_throttle = int(t_out);
 
 
@@ -367,7 +370,7 @@ void loop() {
     count++;
     
   } else {
-    count = 0;
+      count = 0;
       //READ HUMAN CONTROLLER INPUT
       REMOTE_INPUT.pwm_elevator = pulseIn(CHANNEL_2, HIGH);
       REMOTE_INPUT.pwm_aileron = pulseIn(CHANNEL_1, HIGH);
