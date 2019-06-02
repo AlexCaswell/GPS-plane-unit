@@ -1,0 +1,25 @@
+The loop has four steps:
+
+1. Read in data:
+	1. gps as latitude_degrees and longitude_degrees
+	2. magnetometer as degrees from north (0 to 360)
+	3. barometer as feet from initial elevation
+
+2. Check for waypoint arrival
+	1. check if current gps coordinates are within the error radius of the current target waypoint loaded from file
+	2. If true, set the target waypoint to the next waypoint
+
+3. Calculate error and apply PID gains
+	1. calculate height error (target height - current height) and apply corresponding pid gains*
+	2. calculate heading error* and apply corresponding pid gains
+	3. calculate elevator_turn_gain based on heading error
+	4. calculate roll_error based on heading_error and apply corresponding pid gains
+
+4. Apply PID output to actuators
+
+
+
+*heading calculations
+
+The compass angle should be a 0 degrees when facing north and with negitive angles to the left.
+When the angle from the plane to the wp is calculated it needs to be measured in the same frame, that is with the x-axis pointing north and the y-axis east.

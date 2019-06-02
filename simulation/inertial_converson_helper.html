@@ -1,0 +1,76 @@
+</!DOCTYPE html>
+<html>
+<head>
+	<title>Inertial conversion helper</title>
+</head>
+<body>
+	<input type="text" id="mass" placeholder="Mass in killograms"><br><br>
+	<input type="text" id="volume" placeholder="Unscaled volume"><br><br>
+	<input type="text" id="scale" placeholder="Scale factor"><br><br>
+	<input type="text" id="unit_conversion" placeholder="Unit conversion"><br><br>
+	<textarea style="width: 300px; height:100px;" placeholder="Unscaled center of mass (must have trailing and leading space characters)" id="com"></textarea><br><br>
+	<textarea style="width: 300px; height:100px;" id="it" placeholder="Inertial tensor"></textarea><br><br>
+	<button onclick="convert()">convert</button><br>
+	<hr>
+	<pre><xmp id="output"></xmp></pre>
+	<script type="text/javascript">
+		function convert() {
+			var mass = document.getElementById("mass").value;
+			var volume = document.getElementById("volume").value;
+			var scale = document.getElementById("scale").value;
+			var unit_conversion = document.getElementById("unit_conversion").value;
+			var com = document.getElementById("com").value;
+			var it = document.getElementById("it").value;
+
+			var masso = "\t<mass>" + mass + "</mass>\n";
+			como = "\t<pose>";
+			var ito = "\t<inertia>\n";
+
+			var it = replace_all(it, '\n', '');
+			var it = replace_all(it, '|', '');
+			var it = replace_all(it, "  ", ' ');
+
+			var it_elements = ss_list_to_int_array(it);
+
+			var ordered_tags = ["ixx", "ixy", "ixz", "ixy", "iyy", "iyz", "ixz", "iyz",	"izz"];
+			for(var i = 0; i < 9; i++) {
+				var item = it_elements[i];
+				item = item/Math.pow(scale, 5);
+				item = item*(mass/volume);
+				if(unit_conversion != '') item = item*unit_conversion;
+				ito += "\t\t<" + ordered_tags[i] + ">" + item + "</" + ordered_tags[i] + ">\n"; 
+			}
+
+			ito += "\t</inertia>\n";
+
+			var com_elements = ss_list_to_int_array(com);
+			for(var i = 0; i < com_elements.length; i++) {
+				var item = com_elements[i];
+				if(unit_conversion != '') item = item*unit_conversion;
+				como += item + " ";
+			}
+			como += "0 0 0</pose>\n";
+
+			document.getElementById("output").innerHTML = "<inertial>\n" + como + masso + ito + "</inertial>";
+
+		}
+		
+		function replace_all(string, query, replace) {
+			var st = new String(string);
+			while(st != st.replace(query, replace)) st = st.replace(query, replace);
+			return st;
+		}
+
+		function ss_list_to_int_array(list) {
+			var elements = [];
+			var count = 1;
+			while(count < list.length) {
+				var sp_ind = list.indexOf(" ", count);
+				elements[elements.length] = parseFloat(list.substring(count, sp_ind));
+				count = sp_ind+1;
+			}
+			return elements;
+		}
+	</script>
+</body>
+</html>

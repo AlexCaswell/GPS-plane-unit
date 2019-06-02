@@ -1,0 +1,42 @@
+
+Creating inertial parameters for model links
+
+
+
+The inertial tag of a link takes a reference frame, mass in kg, and inertial tensor as its children.
+
+The reference frame uniquely determines the translation and rotation of the links inertial properties relative to a parent frame in 3D space.
+This should be set to the center of mass of the model (which can be measured in CAD), so that the center of mass of the inertial properties are correctly aligned to the rest of the model (The origin of the inertial properties is its center of mass).
+
+The mass property specifies the total mass of the model in units of 1 kilogram. This can be measured in CAD.
+
+The inertial tensor represents the special distribution of mass within the model as a 3x3 matrix. Each element in the matrix is in units of mass*length^2.
+
+
+Calculating the inertial tensor from a mesh can be done in Meshlab as follows:
+
+Import model, resize to increase numerical precision of measurements, and select Filters->Quality Measures and Computation->Compute geometric measures.
+
+The result with contain the volume, center of mass, and inertial tensor among other measurements.
+
+However, Meshlab substitutes volume for mass in the calculations, and the mesh has been resized. This will need to be compensated for wherever the units are dependent on length or mass as follows:
+
+
+Center of Mass (for homogeneous models):
+The x, y and z elements of the center of mass, are units of length.
+in order to account for the scaling of the model, they should each be divided by the scale factor.
+
+
+Inertial tensor:
+Each of the members of the inertial tensor are in units of mass*length^2
+
+The mass was scaled with the volume, which changed as s^3. (s for scale factor). The length^2 property was scaled with s^2. 
+To undo the scaling of these two factors divide by s^5.
+
+Additionally, the member should be multiplied by the ratio of the mass to the original volume to substitute the correct mass.
+
+
+*If the length measurements of the un-scaled mesh were not in the correct units (meters in the case of gazebo), another correction will also have to be applied for length.
+
+
+
